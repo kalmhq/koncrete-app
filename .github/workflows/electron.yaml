@@ -19,6 +19,10 @@ jobs:
         with:
           node-version: 14
 
+      - name: Install Snapcraft
+        uses: samuelmeuli/action-snapcraft@v1
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+
       - name: Build/release Electron app
         uses: samuelmeuli/action-electron-builder@v1
         with:
