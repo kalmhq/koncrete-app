@@ -1,0 +1,54 @@
+{
+  "name": "koncrete",
+  "description": "Koncrete is cloud-hosted continuous delivery for Kubernetes, powered by ArgoCD.",
+  "version": "0.1.0",
+  "private": true,
+  "main": "build/index.js",
+  "author": {
+    "name": "Koncrete",
+    "email": "david@kalm.dev",
+    "url": "https://koncrete.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kalmhq/koncrete-app.git"
+  },
+  "dependencies": {
+    "@types/electron-devtools-installer": "^2.2.0",
+    "@types/node": "^16.4.10",
+    "@types/throttle-debounce": "^2.1.0",
+    "electron-is-dev": "^2.0.0",
+    "electron-updater": "^4.3.9",
+    "follow-redirects": "^1.14.1",
+    "throttle-debounce": "^3.0.1",
+    "typescript": "^3.8.3",
+    "yaml": "^1.10.2"
+  },
+  "build": {
+    "appId": "dev.koncrete.app",
+    "productName": "Koncrete",
+    "copyright": "Copyright © 2021 ${author}",
+    "extends": null,
+    "mac": {
+      "category": "public.app-category.utilities"
+    },
+    "files": ["build/*"],
+    "publish": {
+      "provider": "github",
+      "owner": "Koncrete"
+    }
+  },
+  "scripts": {
+    "postinstall": "electron-builder install-app-deps",
+    "start": "concurrently --kill-others \"tsc -p . -w\" \"tsc -p . && electron .\"",
+    "build": "tsc -p . && cp ./icon.png ./build",
+    "pack": "electron-builder --linux --mac --win --arm64 --x64"
+  },
+  "devDependencies": {
+    "concurrently": "^6.2.0",
+    "electron": "^13.1.7",
+    "electron-builder": "^22.11.7",
+    "electron-devtools-installer": "^3.2.0",
+    "electron-reload": "^1.5.0"
+  }
+}
