@@ -1,5 +1,5 @@
 import { ipcRenderer } from "electron";
-import { ArgoCDCliStatus, Bridge } from "./types";
+import { ArgoCDCliStatus, Bridge, PrivateClusterProxy } from "./types";
 
 // Run in render process only
 // Do not import any other files except typings files
@@ -51,6 +51,31 @@ const registerArgoCDCLIInstallationStatusHandler = (handler: (status: ArgoCDCliS
   };
 };
 
+const startKubectlProxy = (context: string) => {
+  return ipcRenderer.invoke("start-private-cluster-proxy", context);
+};
+
+const stopKubectlProxy = (context: string) => {
+  return ipcRenderer.invoke("stop-private-cluster-proxy", context);
+};
+
+const getKubectlProxyLists = (): Promise<PrivateClusterProxy[]> => {
+  return ipcRenderer.invoke("get-private-cluster-proxy-lists");
+};
+
+const registerPrivateClusterProxiesWatcher = (handler: (proxies: PrivateClusterProxy[]) => void) => {
+  const h = (event: any, lists: PrivateClusterProxy[]) => {
+    handler(lists);
+  };
+
+  ipcRenderer.on("watch-private-cluster-proxy-lists", h);
+  getKubectlProxyLists().then(handler);
+
+  return () => {
+    ipcRenderer.removeListener("watch-private-cluster-proxy-lists", h);
+  };
+};
+
 export const bridge: Bridge = {
   loadKubeconfig,
   downloadArgocdCLI,
@@ -58,4 +83,8 @@ export const bridge: Bridge = {
   registerArgoCDCLIInstallationStatusHandler,
   argocdClIInstallCluster,
   dnsResolve4,
+  stopKubectlProxy,
+  startKubectlProxy,
+  getKubectlProxyLists,
+  registerPrivateClusterProxiesWatcher,
 };

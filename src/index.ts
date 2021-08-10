@@ -5,6 +5,11 @@ import * as path from "path";
 import { registerHandlers } from "./bridgeHandlers";
 import "./spawn";
 
+if (isDev) {
+  // @ts-ignore
+  process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
+}
+
 export let mainWindow: BrowserWindow;
 
 async function createWindow() {
@@ -43,7 +48,7 @@ async function createWindow() {
   }
 
   if (isDev) {
-    // win.webContents.openDevTools();
+    win.webContents.openDevTools();
   }
 
   win.webContents.on("new-window", function (e, url) {

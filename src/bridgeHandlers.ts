@@ -3,6 +3,7 @@ import { ipcMain } from "electron";
 import { promises as fsPromises } from "fs";
 import * as YAML from "yaml";
 import { argoCDCliStatus, downloadArgoCDCLI, loadArgoCDStatus } from "./download";
+import { getKubectlProxyLists, startKubectlProxy, stopKubectlProxy } from "./proxy";
 import { useArgocdInstallCluster } from "./spawn";
 
 // Run in main process
@@ -40,5 +41,17 @@ export const registerHandlers = () => {
 
   ipcMain.handle("argocd-cli-install-cluster", (event, server: string, token: string, context: string) => {
     return useArgocdInstallCluster(server, token, context);
+  });
+
+  ipcMain.handle("start-private-cluster-proxy", (event, context: string) => {
+    return startKubectlProxy(context);
+  });
+
+  ipcMain.handle("stop-private-cluster-proxy", (event, context: string) => {
+    return stopKubectlProxy(context);
+  });
+
+  ipcMain.handle("get-private-cluster-proxy-lists", (event) => {
+    return getKubectlProxyLists();
   });
 };

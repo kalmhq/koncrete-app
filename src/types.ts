@@ -25,13 +25,22 @@ export interface KubeConfig {
   }[];
 }
 
+export interface PrivateClusterProxy {
+  id: string;
+  context: string;
+  kubectlProxyStatus: "Running" | "Stopped";
+  kubectlProxyError: string;
+  kubectlProxyConnectionStatus: "Connected" | "Disconnected";
+  koncreteProxyServerConnectionStatus: "Connected" | "Disconnected";
+  kubectlProxyPID?: number;
+  stopKubectlProxy?: () => void;
+  stopSockets?: () => void;
+}
+
 export interface Bridge {
   loadKubeconfig: () => Promise<KubeConfig>;
-
   downloadArgocdCLI: (version: string) => Promise<any>;
-
   getArgocdCLIStatus: () => Promise<ArgoCDCliStatus>;
-
   registerArgoCDCLIInstallationStatusHandler: (handler: (status: ArgoCDCliStatus) => void) => () => void;
 
   argocdClIInstallCluster: (
@@ -41,13 +50,10 @@ export interface Bridge {
     onOutput: (output: string, fd: number) => void,
   ) => Promise<number>;
 
-  dnsResolve4: (addr: string) => Promise<any>;
-}
+  getKubectlProxyLists: () => Promise<PrivateClusterProxy[]>;
+  registerPrivateClusterProxiesWatcher: (handle: (proxies: PrivateClusterProxy[]) => void) => void;
+  startKubectlProxy: (context: string) => void;
+  stopKubectlProxy: (context: string) => void;
 
-declare global {
-  interface Window {
-    electron?: Bridge;
-    "koncrete-envs": { [key: string]: string };
-    heap: any;
-  }
+  dnsResolve4: (addr: string) => Promise<any>;
 }
