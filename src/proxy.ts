@@ -3,15 +3,22 @@ import { app } from "electron";
 import * as isDev from "electron-is-dev";
 import * as events from "events";
 import * as fs from "fs";
+import * as httpProxy from "http-proxy";
 import * as net from "net";
 import { NetConnectOpts } from "net";
 import * as reconnectCore from "reconnect-core";
+import * as spdy from "spdy";
 import * as tls from "tls";
 import { ConnectionOptions } from "tls";
 import * as waitOn from "wait-on";
 import { mainWindow } from ".";
 import { privateClusterProxiesFilePath } from "./const";
 import { PrivateClusterProxy } from "./types";
+
+interface PrivateClusterProxyServer extends PrivateClusterProxy {
+  handler?: events.EventEmitter;
+  kubectlProxyPID?: number;
+}
 
 const reconnect = reconnectCore((...args: any) => {
   return net.connect.apply(null, args);
@@ -44,15 +51,20 @@ const makeID = (length: number) => {
   return result;
 };
 
-export const runKubectlProxy = (id: string, context: string) => {
+export const runKubectlProxy = (id: string, context: string, proxyHandler: events.EventEmitter) => {
   let timmer: NodeJS.Timeout;
   let isStopped = false;
-  let kill: () => void;
+
+  proxyHandler.on("exit", () => {
+    isStopped = true;
+
+    if (timmer) {
+      clearTimeout(timmer);
+    }
+  });
 
   const run = () => {
     const p = spawn("kubectl", ["proxy", "--context", context, "-p", "30032"]);
-
-    kill = () => p.kill();
 
     p.stdout.on("data", (data) => {
       console.log("stdout data", data.toString());
@@ -76,49 +88,33 @@ export const runKubectlProxy = (id: string, context: string) => {
 
     p.on("close", (code) => {
       console.log(context, "kubectl proxy child process is closed. Code: ", code);
-      app.off("before-quit", kill);
 
       if (!isStopped) {
+        proxyHandler.off("exit", p.kill);
         timmer = setTimeout(run, 3000);
       }
 
       savePrivateClusterProxy({ id, context, kubectlProxyStatus: "Stopped" });
     });
 
-    app.on("before-quit", kill);
-
     if (p.pid) {
       savePrivateClusterProxy({ id, context, kubectlProxyPID: p.pid });
     }
+
+    proxyHandler.on("exit", p.kill);
 
     return p;
   };
 
   run();
-
-  const stop = () => {
-    isStopped = true;
-
-    if (kill) {
-      kill();
-    }
-
-    if (timmer) {
-      clearTimeout(timmer);
-    }
-  };
-
-  return {
-    stop,
-  };
 };
 
-const proxiesList: PrivateClusterProxy[] = [];
+const proxiesList: PrivateClusterProxyServer[] = [];
 const dumpEmitter = new events.EventEmitter();
 
 dumpEmitter.on("dump", () => {
   const data = getSafeSerializedProxyList();
-  console.log("dump", data);
+  // console.log("dump", data);
   fs.writeFile(privateClusterProxiesFilePath, JSON.stringify(data), (err) => {
     if (err) {
       console.error(err);
@@ -127,12 +123,11 @@ dumpEmitter.on("dump", () => {
   });
 });
 
-const getSafeSerializedProxyList = () => {
+const getSafeSerializedProxyList = (): PrivateClusterProxy[] => {
   return proxiesList.map((x) => {
     return Object.assign({}, x, {
-      stopKubectlProxy: undefined,
-      stopSockets: undefined,
-    });
+      handler: undefined,
+    } as Partial<PrivateClusterProxyServer>);
   });
 };
 
@@ -144,7 +139,7 @@ const loadPrivateClusterProxies = () => {
     }
 
     try {
-      const proxies: PrivateClusterProxy[] = JSON.parse(data.toString());
+      const proxies: PrivateClusterProxyServer[] = JSON.parse(data.toString());
 
       for (let i = 0; i < proxies.length; i++) {
         const proxy = proxies[i];
@@ -161,16 +156,12 @@ loadPrivateClusterProxies();
 
 const removePrivateClusterProxy = (id: string) => {
   const index = proxiesList.findIndex((x) => x.id === id);
+
   if (index >= 0) {
     console.log("remove", id);
     const proxy = proxiesList[index];
-    proxy.stopKubectlProxy && proxy.stopKubectlProxy();
-    proxy.stopSockets && proxy.stopSockets();
-
-    try {
-      proxy.kubectlProxyPID && process.kill(proxy.kubectlProxyPID, "SIGKILL");
-      // ignore kill error (pid not exist)
-    } catch (e) {}
+    console.log(proxy.handler);
+    proxy.handler && proxy.handler.emit("exit");
 
     proxiesList.splice(index, 1);
 
@@ -180,7 +171,10 @@ const removePrivateClusterProxy = (id: string) => {
   }
 };
 
-const savePrivateClusterProxy = (obj: Partial<PrivateClusterProxy> & { id: string }, createWhenMissing?: boolean) => {
+const savePrivateClusterProxy = (
+  obj: Partial<PrivateClusterProxyServer> & { id: string },
+  createWhenMissing?: boolean,
+) => {
   const index = proxiesList.findIndex((x) => x.id === obj.id);
   const patchedObj = Object.assign(
     {
@@ -188,7 +182,7 @@ const savePrivateClusterProxy = (obj: Partial<PrivateClusterProxy> & { id: strin
       kubectlProxyStatus: "Stopped",
       koncreteProxyServerConnectionStatus: "Disconnected",
       kubectlProxyConnectionStatus: "Disconnected",
-    } as Partial<PrivateClusterProxy>,
+    } as Partial<PrivateClusterProxyServer>,
     proxiesList[index],
     obj,
   );
@@ -213,13 +207,18 @@ const startProxy = (context: string, _id?: string) => {
   }
 
   const id = _id;
+  const proxyHandler = new events.EventEmitter();
+
+  app.on("before-quit", () => {
+    proxyHandler.emit("exit");
+  });
 
   // Clear conflict
   removePrivateClusterProxy(id);
-  savePrivateClusterProxy({ id, context }, true);
+  savePrivateClusterProxy({ id, context, handler: proxyHandler }, true);
 
-  const { stop: stopKubectlProxy } = runKubectlProxy(id, context);
-  savePrivateClusterProxy({ id, context, stopKubectlProxy }, true);
+  // runKubectlProxy(id, context, proxyHandler);
+  savePrivateClusterProxy({ id, context }, true);
 
   const pipeEmitter = new events.EventEmitter();
 
@@ -243,8 +242,11 @@ const startProxy = (context: string, _id?: string) => {
         });
 
         con.on("data", (data) => {
+          console.log(data.toString());
           pipeEmitter.emit("data-from-kubectl", data);
         });
+
+        con.on("end", () => console.log("end !!!!!!!!!!!!!!!!"));
 
         savePrivateClusterProxy({ id, context, kubectlProxyConnectionStatus: "Connected" });
       })
@@ -255,7 +257,7 @@ const startProxy = (context: string, _id?: string) => {
         savePrivateClusterProxy({ id, context, kubectlProxyConnectionStatus: "Disconnected" });
       })
       .connect({
-        port: 30032,
+        port: 30033,
         host: "localhost",
       } as NetConnectOpts);
 
@@ -271,6 +273,7 @@ const startProxy = (context: string, _id?: string) => {
         pipeEmitter.on("data-from-kubectl", (data) => {
           con.write(data);
         });
+        con.on("end", () => console.log("end !!!!!!!!!!!!!!!!"));
 
         con.on("data", (data) => {
           pipeEmitter.emit("data-from-koncrete", data);
@@ -290,18 +293,29 @@ const startProxy = (context: string, _id?: string) => {
         rejectUnauthorized: false,
       } as ConnectionOptions);
 
-    savePrivateClusterProxy({
-      id,
-      context,
-      stopSockets: () => {
-        con.disconnect();
-        con1.disconnect();
-      },
-    });
+    proxyHandler.on("exit", () => con.disconnect());
+    proxyHandler.on("exit", () => con1.disconnect());
   };
 
+  var server = spdy.createServer(
+    {
+      spdy: { plain: true, protocols: ["h2"] },
+    },
+    (req, res) => {
+      const proxy = httpProxy.createProxyServer({ target: "http://localhost:30032" });
+      proxy.web(req, res);
+    },
+  );
+
+  server.listen(30033);
+
+  proxyHandler.on("exit", () => {
+    // proxy.close();
+    server.close();
+  });
+
   waitOn({
-    resources: ["http://127.0.0.1:30032"],
+    resources: ["http://127.0.0.1:30032", "tcp:127.0.0.1:30033"],
     validateStatus: function (status) {
       return status >= 200 && status < 300;
     },

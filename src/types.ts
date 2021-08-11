@@ -32,9 +32,6 @@ export interface PrivateClusterProxy {
   kubectlProxyError: string;
   kubectlProxyConnectionStatus: "Connected" | "Disconnected";
   koncreteProxyServerConnectionStatus: "Connected" | "Disconnected";
-  kubectlProxyPID?: number;
-  stopKubectlProxy?: () => void;
-  stopSockets?: () => void;
 }
 
 export interface Bridge {
