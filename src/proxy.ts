@@ -3,11 +3,11 @@ import { app } from "electron";
 import * as isDev from "electron-is-dev";
 import * as events from "events";
 import * as fs from "fs";
-import * as httpProxy from "http-proxy";
+import * as http from "http";
+import * as http2 from "http2";
 import * as net from "net";
 import { NetConnectOpts } from "net";
 import * as reconnectCore from "reconnect-core";
-import * as spdy from "spdy";
 import * as tls from "tls";
 import { ConnectionOptions } from "tls";
 import * as waitOn from "wait-on";
@@ -101,7 +101,9 @@ export const runKubectlProxy = (id: string, context: string, proxyHandler: event
       savePrivateClusterProxy({ id, context, kubectlProxyPID: p.pid });
     }
 
-    proxyHandler.on("exit", p.kill);
+    proxyHandler.on("exit", () => {
+      p.kill();
+    });
 
     return p;
   };
@@ -217,7 +219,7 @@ const startProxy = (context: string, _id?: string) => {
   removePrivateClusterProxy(id);
   savePrivateClusterProxy({ id, context, handler: proxyHandler }, true);
 
-  // runKubectlProxy(id, context, proxyHandler);
+  runKubectlProxy(id, context, proxyHandler);
   savePrivateClusterProxy({ id, context }, true);
 
   const pipeEmitter = new events.EventEmitter();
@@ -242,11 +244,9 @@ const startProxy = (context: string, _id?: string) => {
         });
 
         con.on("data", (data) => {
-          console.log(data.toString());
+          // console.log(data.toString());
           pipeEmitter.emit("data-from-kubectl", data);
         });
-
-        con.on("end", () => console.log("end !!!!!!!!!!!!!!!!"));
 
         savePrivateClusterProxy({ id, context, kubectlProxyConnectionStatus: "Connected" });
       })
@@ -273,7 +273,6 @@ const startProxy = (context: string, _id?: string) => {
         pipeEmitter.on("data-from-kubectl", (data) => {
           con.write(data);
         });
-        con.on("end", () => console.log("end !!!!!!!!!!!!!!!!"));
 
         con.on("data", (data) => {
           pipeEmitter.emit("data-from-koncrete", data);
@@ -297,20 +296,45 @@ const startProxy = (context: string, _id?: string) => {
     proxyHandler.on("exit", () => con1.disconnect());
   };
 
-  var server = spdy.createServer(
-    {
-      spdy: { plain: true, protocols: ["h2"] },
-    },
-    (req, res) => {
-      const proxy = httpProxy.createProxyServer({ target: "http://localhost:30032" });
-      proxy.web(req, res);
-    },
-  );
+  const server = http2
+    .createServer({}, (h2req, h2res) => {
+      http
+        .request(
+          {
+            hostname: "localhost",
+            port: 30032,
+            method: h2req.method,
+            path: h2req.url,
+          },
+          (res) => {
+            const headers = Object.assign({}, res.headers);
 
-  server.listen(30033);
+            // Hop-by-hop headers. These are removed when sent to the backend.
+            // http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
+            delete headers["transfer-encoding"];
+            delete headers["connection"];
+            delete headers["keep-alive"];
+            delete headers["upgrade"];
+            delete headers["proxy-authenticate"];
+            delete headers["proxy-authorization"];
+            delete headers["te"];
+            delete headers["trailer"];
+            h2res.writeHead(res.statusCode!, headers);
+
+            res.on("data", (data) => {
+              h2res.write(data);
+            });
+
+            res.on("end", () => {
+              h2res.end();
+            });
+          },
+        )
+        .end();
+    })
+    .listen(30033);
 
   proxyHandler.on("exit", () => {
-    // proxy.close();
     server.close();
   });
 
