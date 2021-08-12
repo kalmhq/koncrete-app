@@ -30,8 +30,7 @@ export interface PrivateClusterProxy {
   context: string;
   kubectlProxyStatus: "Running" | "Stopped";
   kubectlProxyError: string;
-  kubectlProxyConnectionStatus: "Connected" | "Disconnected";
-  koncreteProxyServerConnectionStatus: "Connected" | "Disconnected";
+  tunnelStatus: "Connected" | "Disconnected";
 }
 
 export interface Bridge {

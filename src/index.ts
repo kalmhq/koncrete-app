@@ -43,7 +43,7 @@ async function createWindow() {
         "electron" + (process.platform === "win32" ? ".cmd" : ""),
       ),
       forceHardReset: true,
-      hardResetMethod: "exit",
+      // hardResetMethod: "exit",
     });
   }
 

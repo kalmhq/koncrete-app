@@ -17,6 +17,7 @@
     "@types/electron-devtools-installer": "^2.2.0",
     "@types/node": "^16.4.10",
     "@types/throttle-debounce": "^2.1.0",
+    "debug": "^4.3.2",
     "electron-is-dev": "^2.0.0",
     "electron-updater": "^4.3.9",
     "follow-redirects": "^1.14.1",
