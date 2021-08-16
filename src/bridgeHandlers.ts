@@ -3,8 +3,13 @@ import { ipcMain } from "electron";
 import { promises as fsPromises } from "fs";
 import * as YAML from "yaml";
 import { argoCDCliStatus, downloadArgoCDCLI, loadArgoCDStatus } from "./download";
-import { getKubectlProxyLists, startKubectlProxy, stopKubectlProxy } from "./proxy";
-import { useArgocdInstallCluster } from "./spawn";
+import {
+  getKubectlProxyLists,
+  RegisterProxyServerHostnameTemplate,
+  startKubectlProxy,
+  stopKubectlProxy,
+} from "./proxy";
+import { argocdInstallCluster, argocdInstallProxyCluster } from "./spawn";
 
 // Run in main process
 
@@ -39,9 +44,19 @@ export const registerHandlers = () => {
     return downloadArgoCDCLI(version);
   });
 
-  ipcMain.handle("argocd-cli-install-cluster", (event, server: string, token: string, context: string) => {
-    return useArgocdInstallCluster(server, token, context);
-  });
+  ipcMain.handle(
+    "argocd-cli-install-cluster",
+    (event, server: string, token: string, context: string, streamID: string) => {
+      return argocdInstallCluster(server, token, context, streamID);
+    },
+  );
+
+  ipcMain.handle(
+    "argocd-cli-install-proxy-cluster",
+    (event, server: string, token: string, proxyID: string, streamID) => {
+      return argocdInstallProxyCluster(server, token, proxyID, streamID);
+    },
+  );
 
   ipcMain.handle("start-private-cluster-proxy", (event, context: string) => {
     return startKubectlProxy(context);
@@ -53,5 +68,9 @@ export const registerHandlers = () => {
 
   ipcMain.handle("get-private-cluster-proxy-lists", (event) => {
     return getKubectlProxyLists();
+  });
+
+  ipcMain.handle("register-proxy-server-hostname-template", (event, template) => {
+    return RegisterProxyServerHostnameTemplate(template);
   });
 };

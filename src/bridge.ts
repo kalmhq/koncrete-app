@@ -1,5 +1,6 @@
 import { ipcRenderer } from "electron";
 import { ArgoCDCliStatus, Bridge, PrivateClusterProxy } from "./types";
+import { makeID } from "./utils";
 
 // Run in render process only
 // Do not import any other files except typings files
@@ -26,12 +27,41 @@ const argocdClIInstallCluster = (
     handler(output, fd);
   };
 
-  ipcRenderer.on("argocd-cli-install-cluster-stream", h);
+  const streamID = makeID(32);
 
-  return ipcRenderer.invoke("argocd-cli-install-cluster", server, token, context).then((res) => {
-    ipcRenderer.removeListener("argocd-cli-install-cluster-stream", h);
-    return res;
-  });
+  ipcRenderer.on(streamID, h);
+
+  return ipcRenderer
+    .invoke("argocd-cli-install-cluster", server, token, context, streamID)
+    .then((res) => {
+      return res;
+    })
+    .finally(() => {
+      ipcRenderer.off(streamID, h);
+    });
+};
+
+const argocdClIInstallProxyCluster = (
+  server: string,
+  token: string,
+  proxyID: string,
+  handler: (output: string, fd: number) => void,
+) => {
+  const h = (event: any, output: string, fd: number) => {
+    handler(output, fd);
+  };
+
+  const streamID = makeID(32);
+  ipcRenderer.on(streamID, h);
+
+  return ipcRenderer
+    .invoke("argocd-cli-install-proxy-cluster", server, token, proxyID, streamID)
+    .then((res) => {
+      return res;
+    })
+    .finally(() => {
+      ipcRenderer.removeListener(streamID, h);
+    });
 };
 
 const dnsResolve4 = (addr: string) => {
@@ -76,15 +106,21 @@ const registerPrivateClusterProxiesWatcher = (handler: (proxies: PrivateClusterP
   };
 };
 
+const registerProxyServerHostnameTemplate = (template: string) => {
+  return ipcRenderer.invoke("register-proxy-server-hostname-template", template);
+};
+
 export const bridge: Bridge = {
   loadKubeconfig,
   downloadArgocdCLI,
   getArgocdCLIStatus,
   registerArgoCDCLIInstallationStatusHandler,
   argocdClIInstallCluster,
+  argocdClIInstallProxyCluster,
   dnsResolve4,
   stopKubectlProxy,
   startKubectlProxy,
   getKubectlProxyLists,
   registerPrivateClusterProxiesWatcher,
+  registerProxyServerHostnameTemplate,
 };

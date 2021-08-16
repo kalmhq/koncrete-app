@@ -5,12 +5,14 @@ import * as isDev from "electron-is-dev";
 import * as events from "events";
 import * as fs from "fs";
 import * as http from "http";
+import { RequestOptions } from "http";
 import * as http2 from "http2";
 import * as net from "net";
 import { NetConnectOpts } from "net";
 import * as reconnectCore from "reconnect-core";
 import * as tls from "tls";
 import { ConnectionOptions } from "tls";
+import * as tmp from "tmp";
 import * as waitOn from "wait-on";
 import { mainWindow } from ".";
 import { privateClusterProxiesFilePath } from "./const";
@@ -19,6 +21,27 @@ import { makeID } from "./utils";
 
 const dumpLogger = debug("koncrete:proxy:dump");
 const logger = debug("koncrete:proxy");
+
+let proxyHostnameTemplate: string;
+
+const getProxyClusterKubeconfigContent = (name: string, id: string) => {
+  if (!proxyHostnameTemplate) {
+    throw new Error("proxyHostnameTemplate is not set");
+  }
+
+  return `apiVersion: v1
+clusters:
+- cluster:
+    server: ${proxyHostnameTemplate.replace("{{ID}}", id)}
+  name: ${name}
+contexts:
+- context:
+    cluster: ${name}
+    namespace: default
+  name: ${name}
+current-context: ${name}
+`;
+};
 
 interface PrivateClusterProxyServer extends PrivateClusterProxy {
   handler?: events.EventEmitter;
@@ -220,9 +243,18 @@ const startProxy = (context: string, _id?: string) => {
     proxyHandler.emit("exit");
   });
 
+  const tmpobj = tmp.fileSync();
+
+  fs.writeFileSync(tmpobj.name, getProxyClusterKubeconfigContent(context, id));
+  logger("proxy cluster kubeconfig path", tmpobj.name);
+
+  proxyHandler.on("exit", () => {
+    tmpobj.removeCallback();
+  });
+
   // Clear conflict
   removePrivateClusterProxy(id);
-  savePrivateClusterProxy({ id, context, handler: proxyHandler }, true);
+  savePrivateClusterProxy({ id, context, handler: proxyHandler, kubeconfigPath: tmpobj.name }, true);
 
   runKubectlProxy(context, proxyHandler);
 
@@ -300,13 +332,27 @@ const startProxy = (context: string, _id?: string) => {
 
   const server = http2
     .createServer({}, (h2req, h2res) => {
-      const options = {
+      const headers: http.OutgoingHttpHeaders = {};
+
+      Object.keys(h2req.headers).forEach((key) => {
+        if (key.startsWith(":")) {
+          return;
+        }
+
+        const value = h2req.headers[key];
+        headers[key] = value;
+      });
+
+      const options: RequestOptions = {
         hostname: "localhost",
         port: kubectlProxyPort,
         method: h2req.method,
         path: h2req.url,
+        headers,
       };
+
       const req = http.request(options, (res) => {
+        logger("h2req.headers", h2req.headers);
         const headers = Object.assign({}, res.headers);
 
         // Hop-by-hop headers. These are removed when sent to the backend.
@@ -321,20 +367,30 @@ const startProxy = (context: string, _id?: string) => {
         delete headers["trailer"];
         h2res.writeHead(res.statusCode!, headers);
 
-        res.on("data", (data) => {
-          h2res.write(data);
-        });
+        res.pipe(h2res);
+        // res.on("data", (data) => {
+        // h2res.write(data);
+        // });
+
+        logger("res.headers", res.headers);
 
         res.on("end", () => {
+          logger("h2res.headers", h2res.getHeaders());
           h2res.end();
         });
       });
+
+      logger("req.headers", req.getHeaders());
 
       req.on("error", (error) => {
         h2res.destroy();
       });
 
-      req.end();
+      h2req.pipe(req);
+
+      h2req.on("end", () => {
+        req.end();
+      });
     })
     .on("sessionError", (err) => {
       logger("error", err);
@@ -372,4 +428,8 @@ export const startKubectlProxy = (context: string) => {
 
 export const stopKubectlProxy = (id: string) => {
   return removePrivateClusterProxy(id);
+};
+
+export const RegisterProxyServerHostnameTemplate = (hostname: string) => {
+  proxyHostnameTemplate = hostname;
 };

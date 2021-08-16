@@ -31,6 +31,7 @@ export interface PrivateClusterProxy {
   kubectlProxyStatus: "Running" | "Stopped";
   kubectlProxyError: string;
   tunnelStatus: "Connected" | "Disconnected";
+  kubeconfigPath?: string;
 }
 
 export interface Bridge {
@@ -38,6 +39,13 @@ export interface Bridge {
   downloadArgocdCLI: (version: string) => Promise<any>;
   getArgocdCLIStatus: () => Promise<ArgoCDCliStatus>;
   registerArgoCDCLIInstallationStatusHandler: (handler: (status: ArgoCDCliStatus) => void) => () => void;
+
+  argocdClIInstallProxyCluster: (
+    server: string,
+    token: string,
+    proxyID: string,
+    handler: (output: string, fd: number) => void,
+  ) => Promise<number>;
 
   argocdClIInstallCluster: (
     server: string,
@@ -50,6 +58,7 @@ export interface Bridge {
   registerPrivateClusterProxiesWatcher: (handle: (proxies: PrivateClusterProxy[]) => void) => void;
   startKubectlProxy: (context: string) => void;
   stopKubectlProxy: (context: string) => void;
+  registerProxyServerHostnameTemplate: (host: string) => void;
 
   dnsResolve4: (addr: string) => Promise<any>;
 }
