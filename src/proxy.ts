@@ -26,7 +26,7 @@ let proxyHostnameTemplate: string;
 
 const getProxyClusterKubeconfigContent = (name: string, id: string) => {
   if (!proxyHostnameTemplate) {
-    throw new Error("proxyHostnameTemplate is not set");
+    throw new Error("proxyHostnameTemplate is not set.");
   }
 
   return `apiVersion: v1
@@ -139,15 +139,16 @@ export const runKubectlProxy = (context: string, proxyHandler: events.EventEmitt
 const proxiesList: PrivateClusterProxyServer[] = [];
 const dumpEmitter = new events.EventEmitter();
 
-dumpEmitter.on("dump", () => {
-  const data = getSafeSerializedProxyList();
-  // logger("dump", data);
-  fs.writeFile(privateClusterProxiesFilePath, JSON.stringify(data), (err) => {
-    if (err) {
-      dumpLogger(err);
-      return;
-    }
-  });
+// Enqueue
+dumpEmitter.on("dump", (data) => {
+  const tmpName = privateClusterProxiesFilePath + ".tmp";
+
+  try {
+    fs.writeFileSync(tmpName, JSON.stringify(data));
+    fs.renameSync(tmpName, privateClusterProxiesFilePath);
+  } catch (err) {
+    dumpLogger(err);
+  }
 });
 
 const getSafeSerializedProxyList = (): PrivateClusterProxy[] => {
@@ -173,13 +174,12 @@ const loadPrivateClusterProxies = () => {
         startProxy(proxy.context, proxy.id);
       }
     } catch (e) {
-      if (e instanceof SyntaxError) return;
+      console.log(e);
+      // if (e instanceof SyntaxError) return;
       dumpLogger(e);
     }
   });
 };
-
-loadPrivateClusterProxies();
 
 const removePrivateClusterProxy = (id: string) => {
   const index = proxiesList.findIndex((x) => x.id === id);
@@ -194,7 +194,7 @@ const removePrivateClusterProxy = (id: string) => {
 
     const data = getSafeSerializedProxyList();
     mainWindow.webContents.send("watch-private-cluster-proxy-lists", data);
-    dumpEmitter.emit("dump");
+    dumpEmitter.emit("dump", data);
   }
 };
 
@@ -223,7 +223,7 @@ const savePrivateClusterProxy = (
 
   const data = getSafeSerializedProxyList();
   mainWindow.webContents.send("watch-private-cluster-proxy-lists", data);
-  dumpEmitter.emit("dump");
+  dumpEmitter.emit("dump", data);
 };
 
 const startProxy = (context: string, _id?: string) => {
@@ -253,7 +253,6 @@ const startProxy = (context: string, _id?: string) => {
   });
 
   // Clear conflict
-  removePrivateClusterProxy(id);
   savePrivateClusterProxy({ id, context, handler: proxyHandler, kubeconfigPath: tmpobj.name }, true);
 
   runKubectlProxy(context, proxyHandler);
@@ -352,7 +351,6 @@ const startProxy = (context: string, _id?: string) => {
       };
 
       const req = http.request(options, (res) => {
-        logger("h2req.headers", h2req.headers);
         const headers = Object.assign({}, res.headers);
 
         // Hop-by-hop headers. These are removed when sent to the backend.
@@ -372,15 +370,10 @@ const startProxy = (context: string, _id?: string) => {
         // h2res.write(data);
         // });
 
-        logger("res.headers", res.headers);
-
         res.on("end", () => {
-          logger("h2res.headers", h2res.getHeaders());
           h2res.end();
         });
       });
-
-      logger("req.headers", req.getHeaders());
 
       req.on("error", (error) => {
         h2res.destroy();
@@ -431,5 +424,8 @@ export const stopKubectlProxy = (id: string) => {
 };
 
 export const RegisterProxyServerHostnameTemplate = (hostname: string) => {
-  proxyHostnameTemplate = hostname;
+  if (!proxyHostnameTemplate) {
+    proxyHostnameTemplate = hostname;
+    loadPrivateClusterProxies();
+  }
 };
