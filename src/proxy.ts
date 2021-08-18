@@ -1,4 +1,5 @@
 import { spawn } from "child_process";
+import * as crypto from "crypto";
 import debug from "debug";
 import { app } from "electron";
 import * as isDev from "electron-is-dev";
@@ -17,7 +18,6 @@ import * as waitOn from "wait-on";
 import { mainWindow } from ".";
 import { privateClusterProxiesFilePath } from "./const";
 import { PrivateClusterProxy } from "./types";
-import { makeID } from "./utils";
 
 const dumpLogger = debug("koncrete:proxy:dump");
 const logger = debug("koncrete:proxy");
@@ -66,7 +66,7 @@ const reconnectTLS = reconnectCore((...args: any) => {
   return cleartextStream;
 });
 
-export const runKubectlProxy = (context: string, proxyHandler: events.EventEmitter) => {
+const runKubectlProxy = (context: string, proxyHandler: events.EventEmitter) => {
   let timmer: NodeJS.Timeout;
   let isStopped = false;
 
@@ -143,8 +143,17 @@ const dumpEmitter = new events.EventEmitter();
 dumpEmitter.on("dump", (data) => {
   const tmpName = privateClusterProxiesFilePath + ".tmp";
 
+  let content;
+
   try {
-    fs.writeFileSync(tmpName, JSON.stringify(data));
+    content = JSON.parse(fs.readFileSync(privateClusterProxiesFilePath).toString());
+  } catch (e) {
+    content = {};
+  }
+
+  try {
+    content[proxyHostnameTemplate] = data;
+    fs.writeFileSync(tmpName, JSON.stringify(content));
     fs.renameSync(tmpName, privateClusterProxiesFilePath);
   } catch (err) {
     dumpLogger(err);
@@ -167,15 +176,14 @@ const loadPrivateClusterProxies = () => {
     }
 
     try {
-      const proxies: PrivateClusterProxyServer[] = JSON.parse(data.toString());
+      const proxies: PrivateClusterProxyServer[] = JSON.parse(data.toString())[proxyHostnameTemplate];
 
       for (let i = 0; i < proxies.length; i++) {
         const proxy = proxies[i];
         startProxy(proxy.context, proxy.id);
       }
     } catch (e) {
-      console.log(e);
-      // if (e instanceof SyntaxError) return;
+      if (e instanceof SyntaxError) return;
       dumpLogger(e);
     }
   });
@@ -227,13 +235,19 @@ const savePrivateClusterProxy = (
 };
 
 const startProxy = (context: string, _id?: string) => {
-  const id = _id || makeID(32);
+  const id =
+    _id ||
+    crypto
+      .createHash("md5")
+      .update(proxyHostnameTemplate + context)
+      .digest("hex");
 
   let h2Port: number;
   let kubectlProxyPort: number;
 
   // event bus of this proxy
   const proxyHandler = new events.EventEmitter();
+  proxyHandler.setMaxListeners(500);
 
   proxyHandler.on("save", (obj: Partial<PrivateClusterProxyServer>) => {
     savePrivateClusterProxy({ id, context, ...obj });
@@ -253,7 +267,16 @@ const startProxy = (context: string, _id?: string) => {
   });
 
   // Clear conflict
-  savePrivateClusterProxy({ id, context, handler: proxyHandler, kubeconfigPath: tmpobj.name }, true);
+  savePrivateClusterProxy(
+    {
+      id,
+      context,
+      handler: proxyHandler,
+      kubeconfigPath: tmpobj.name,
+      server: proxyHostnameTemplate.replace("{{ID}}", id),
+    },
+    true,
+  );
 
   runKubectlProxy(context, proxyHandler);
 
@@ -329,62 +352,103 @@ const startProxy = (context: string, _id?: string) => {
     proxyHandler.on("exit", () => conn2.disconnect());
   };
 
+  const h2ServerHandler = (h2req: http2.Http2ServerRequest, h2res: http2.Http2ServerResponse) => {
+    const headers: http.OutgoingHttpHeaders = {};
+
+    Object.keys(h2req.headers).forEach((key) => {
+      // Remove h2 pseudo headers
+      if (key.startsWith(":")) {
+        return;
+      }
+
+      const value = h2req.headers[key];
+      headers[key] = value;
+    });
+
+    const options: RequestOptions = {
+      hostname: "localhost",
+      port: kubectlProxyPort,
+      method: h2req.method,
+      path: h2req.url,
+      headers,
+    };
+
+    const req = http.request(options, (res) => {
+      const headers = Object.assign({}, res.headers);
+
+      // Hop-by-hop headers. These are removed when sent to the backend.
+      // http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
+      delete headers["transfer-encoding"];
+      delete headers["connection"];
+      delete headers["keep-alive"];
+      delete headers["upgrade"];
+      delete headers["proxy-authenticate"];
+      delete headers["proxy-authorization"];
+      delete headers["te"];
+      delete headers["trailer"];
+      h2res.writeHead(res.statusCode!, headers);
+
+      res.pipe(h2res);
+
+      res.on("error", (error) => {
+        h2res.emit("error", error);
+      });
+
+      res.on("close", () => {
+        h2res.emit("close");
+      });
+
+      res.on("end", () => {
+        h2res.end();
+      });
+    });
+
+    // destroy connections when the kubectl proxy is restart
+    const onKubectlPortChange = () => {
+      req.destroy();
+      h2req.destroy();
+      h2res.destroy();
+    };
+
+    proxyHandler.once("kubectl-port", onKubectlPortChange);
+
+    h2res.on("finish", () => {
+      proxyHandler.off("kubectl-port", onKubectlPortChange);
+    });
+
+    h2res.on("close", () => {
+      proxyHandler.off("kubectl-port", onKubectlPortChange);
+    });
+
+    h2res.on("error", () => {
+      proxyHandler.off("kubectl-port", onKubectlPortChange);
+    });
+
+    req.on("error", (error) => {
+      h2res.emit("error", error);
+    });
+
+    h2req.pipe(req);
+
+    h2req.on("end", () => {
+      req.end();
+    });
+
+    h2req.on("aborted", () => {
+      req.emit("close");
+    });
+
+    h2req.on("close", () => {
+      req.emit("close");
+    });
+
+    h2req.on("error", () => {
+      console.log("h2req error");
+    });
+  };
+
   const server = http2
-    .createServer({}, (h2req, h2res) => {
-      const headers: http.OutgoingHttpHeaders = {};
-
-      Object.keys(h2req.headers).forEach((key) => {
-        if (key.startsWith(":")) {
-          return;
-        }
-
-        const value = h2req.headers[key];
-        headers[key] = value;
-      });
-
-      const options: RequestOptions = {
-        hostname: "localhost",
-        port: kubectlProxyPort,
-        method: h2req.method,
-        path: h2req.url,
-        headers,
-      };
-
-      const req = http.request(options, (res) => {
-        const headers = Object.assign({}, res.headers);
-
-        // Hop-by-hop headers. These are removed when sent to the backend.
-        // http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
-        delete headers["transfer-encoding"];
-        delete headers["connection"];
-        delete headers["keep-alive"];
-        delete headers["upgrade"];
-        delete headers["proxy-authenticate"];
-        delete headers["proxy-authorization"];
-        delete headers["te"];
-        delete headers["trailer"];
-        h2res.writeHead(res.statusCode!, headers);
-
-        res.pipe(h2res);
-        // res.on("data", (data) => {
-        // h2res.write(data);
-        // });
-
-        res.on("end", () => {
-          h2res.end();
-        });
-      });
-
-      req.on("error", (error) => {
-        h2res.destroy();
-      });
-
-      h2req.pipe(req);
-
-      h2req.on("end", () => {
-        req.end();
-      });
-    })
+    .createServer({}, h2ServerHandler)
     .on("sessionError", (err) => {
       logger("error", err);
     })
@@ -410,6 +474,8 @@ const startProxy = (context: string, _id?: string) => {
     }).then(connectTunnel);
   });
 };
+
+// exposed bridge methods
 
 export const getKubectlProxyLists = (): PrivateClusterProxy[] => {
   return getSafeSerializedProxyList();

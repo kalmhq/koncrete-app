@@ -28,6 +28,7 @@ export interface KubeConfig {
 export interface PrivateClusterProxy {
   id: string;
   context: string;
+  server: string;
   kubectlProxyStatus: "Running" | "Stopped";
   kubectlProxyError: string;
   tunnelStatus: "Connected" | "Disconnected";
