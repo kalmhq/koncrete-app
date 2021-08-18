@@ -14,7 +14,6 @@
     "url": "https://github.com/kalmhq/koncrete-app.git"
   },
   "dependencies": {
-    "@types/electron-devtools-installer": "^2.2.0",
     "@types/node": "^16.4.10",
     "@types/throttle-debounce": "^2.1.0",
     "debug": "^4.3.2",
@@ -36,7 +35,9 @@
     "mac": {
       "category": "public.app-category.utilities"
     },
-    "files": ["build/*"],
+    "files": [
+      "build/*"
+    ],
     "publish": {
       "provider": "github"
     }
@@ -54,7 +55,6 @@
     "concurrently": "^6.2.0",
     "electron": "^13.1.7",
     "electron-builder": "^22.11.7",
-    "electron-devtools-installer": "^3.2.0",
     "electron-reload": "^1.5.0"
   }
 }
