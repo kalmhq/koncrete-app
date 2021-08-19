@@ -1,5 +1,5 @@
 import { ipcRenderer } from "electron";
-import { ArgoCDCliStatus, Bridge, PrivateClusterProxy } from "./types";
+import { ArgoCDCliStatus, Bridge, PrivateClusterProxy, ProxyServerSettings } from "./types";
 import { makeID } from "./utils";
 
 // Run in render process only
@@ -106,8 +106,8 @@ const registerPrivateClusterProxiesWatcher = (handler: (proxies: PrivateClusterP
   };
 };
 
-const registerProxyServerHostnameTemplate = (template: string) => {
-  return ipcRenderer.invoke("register-proxy-server-hostname-template", template);
+const registerProxyServerConfig = (config: ProxyServerSettings) => {
+  return ipcRenderer.invoke("register-proxy-server-config", config);
 };
 
 export const bridge: Bridge = {
@@ -122,5 +122,5 @@ export const bridge: Bridge = {
   startKubectlProxy,
   getKubectlProxyLists,
   registerPrivateClusterProxiesWatcher,
-  registerProxyServerHostnameTemplate,
+  registerProxyServerConfig,
 };

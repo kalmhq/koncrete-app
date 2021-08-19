@@ -35,6 +35,11 @@ export interface PrivateClusterProxy {
   kubeconfigPath?: string;
 }
 
+export interface ProxyServerSettings {
+  hostTemplate: string;
+  proxyServerAddress: string;
+}
+
 export interface Bridge {
   loadKubeconfig: () => Promise<KubeConfig>;
   downloadArgocdCLI: (version: string) => Promise<any>;
@@ -59,7 +64,7 @@ export interface Bridge {
   registerPrivateClusterProxiesWatcher: (handle: (proxies: PrivateClusterProxy[]) => void) => void;
   startKubectlProxy: (context: string) => void;
   stopKubectlProxy: (context: string) => void;
-  registerProxyServerHostnameTemplate: (host: string) => void;
+  registerProxyServerConfig: (config: ProxyServerSettings) => void;
 
   dnsResolve4: (addr: string) => Promise<any>;
 }

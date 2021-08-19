@@ -17,22 +17,22 @@ import * as tmp from "tmp";
 import * as waitOn from "wait-on";
 import { mainWindow } from ".";
 import { privateClusterProxiesFilePath } from "./const";
-import { PrivateClusterProxy } from "./types";
+import { PrivateClusterProxy, ProxyServerSettings } from "./types";
 
 const dumpLogger = debug("koncrete:proxy:dump");
 const logger = debug("koncrete:proxy");
 
-let proxyHostnameTemplate: string;
+let proxyConfig: ProxyServerSettings;
 
 const getProxyClusterKubeconfigContent = (name: string, id: string) => {
-  if (!proxyHostnameTemplate) {
-    throw new Error("proxyHostnameTemplate is not set.");
+  if (!proxyConfig) {
+    throw new Error("proxyConfig is not set.");
   }
 
   return `apiVersion: v1
 clusters:
 - cluster:
-    server: ${proxyHostnameTemplate.replace("{{ID}}", id)}
+    server: ${proxyConfig.hostTemplate.replace("{{ID}}", id)}
   name: ${name}
 contexts:
 - context:
@@ -152,7 +152,7 @@ dumpEmitter.on("dump", (data) => {
   }
 
   try {
-    content[proxyHostnameTemplate] = data;
+    content[proxyConfig.hostTemplate] = data;
     fs.writeFileSync(tmpName, JSON.stringify(content));
     fs.renameSync(tmpName, privateClusterProxiesFilePath);
   } catch (err) {
@@ -176,7 +176,7 @@ const loadPrivateClusterProxies = () => {
     }
 
     try {
-      const proxies: PrivateClusterProxyServer[] = JSON.parse(data.toString())[proxyHostnameTemplate];
+      const proxies: PrivateClusterProxyServer[] = JSON.parse(data.toString())[proxyConfig.hostTemplate];
 
       for (let i = 0; i < proxies.length; i++) {
         const proxy = proxies[i];
@@ -239,7 +239,7 @@ const startProxy = (context: string, _id?: string) => {
     _id ||
     crypto
       .createHash("md5")
-      .update(proxyHostnameTemplate + context)
+      .update(proxyConfig.hostTemplate + context)
       .digest("hex");
 
   let h2Port: number;
@@ -273,7 +273,7 @@ const startProxy = (context: string, _id?: string) => {
       context,
       handler: proxyHandler,
       kubeconfigPath: tmpobj.name,
-      server: proxyHostnameTemplate.replace("{{ID}}", id),
+      server: proxyConfig.hostTemplate.replace("{{ID}}", id),
     },
     true,
   );
@@ -293,6 +293,8 @@ const startProxy = (context: string, _id?: string) => {
     let conn1: reconnectCore.Instance<any, net.Socket>;
 
     const pipeEmitter = new events.EventEmitter();
+
+    const [proxyConnectionServerHost, proxyConnectionServerPort] = proxyConfig.proxyServerAddress.split(":");
 
     const conn2 = reconnectTLS(reconnectOptions)
       .on("reconnect", (n, delay) => {})
@@ -344,8 +346,8 @@ const startProxy = (context: string, _id?: string) => {
         proxyHandler.emit("save", { tunnelStatus: "Disconnected" });
       })
       .connect({
-        port: 3333,
-        host: "localhost",
+        port: parseInt(proxyConnectionServerPort) || 443,
+        host: proxyConnectionServerHost || "localhost",
         rejectUnauthorized: false,
       } as ConnectionOptions);
 
@@ -489,9 +491,9 @@ export const stopKubectlProxy = (id: string) => {
   return removePrivateClusterProxy(id);
 };
 
-export const RegisterProxyServerHostnameTemplate = (hostname: string) => {
-  if (!proxyHostnameTemplate) {
-    proxyHostnameTemplate = hostname;
+export const registerProxyServerConfig = (config: ProxyServerSettings) => {
+  if (!proxyConfig) {
+    proxyConfig = config;
     loadPrivateClusterProxies();
   }
 };

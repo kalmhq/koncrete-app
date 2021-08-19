@@ -3,12 +3,7 @@ import { ipcMain } from "electron";
 import { promises as fsPromises } from "fs";
 import * as YAML from "yaml";
 import { argoCDCliStatus, downloadArgoCDCLI, loadArgoCDStatus } from "./download";
-import {
-  getKubectlProxyLists,
-  RegisterProxyServerHostnameTemplate,
-  startKubectlProxy,
-  stopKubectlProxy,
-} from "./proxy";
+import { getKubectlProxyLists, registerProxyServerConfig, startKubectlProxy, stopKubectlProxy } from "./proxy";
 import { argocdInstallCluster, argocdInstallProxyCluster } from "./spawn";
 
 // Run in main process
@@ -70,7 +65,7 @@ export const registerHandlers = () => {
     return getKubectlProxyLists();
   });
 
-  ipcMain.handle("register-proxy-server-hostname-template", (event, template) => {
-    return RegisterProxyServerHostnameTemplate(template);
+  ipcMain.handle("register-proxy-server-config", (event, config) => {
+    return registerProxyServerConfig(config);
   });
 };
