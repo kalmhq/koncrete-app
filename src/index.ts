@@ -4,10 +4,25 @@ import * as path from "path";
 import { registerHandlers } from "./bridgeHandlers";
 import "./spawn";
 
+// Fix PATH env
+// https://stackoverflow.com/questions/45149031/electron-packager-spawn-enoent
+require("fix-path")();
+
 if (isDev) {
   // @ts-ignore
   process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 }
+
+const shellPath = require("shell-path");
+
+module.exports = () => {
+  if (process.platform !== "darwin") {
+    return;
+  }
+
+  process.env.PATH =
+    shellPath.sync() || ["./node_modules/.bin", "/.nodebrew/current/bin", "/usr/local/bin", process.env.PATH].join(":");
+};
 
 export let mainWindow: BrowserWindow;
 
