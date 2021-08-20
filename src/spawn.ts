@@ -14,7 +14,7 @@ const runArgocd = (args: string[], server: string, token: string, streamID: stri
         : ["--server", server, "--grpc-web", "--auth-token", token],
     );
 
-    const p = spawn(argocdPath, combinedArgs);
+    const p = spawn(argocdPath, combinedArgs, { env: { ...process.env, ARGOCD_BINARY_NAME: "argocd" } });
 
     p.stdout.on("data", (data) => {
       mainWindow.webContents.send(streamID, new TextDecoder().decode(data), 1);
