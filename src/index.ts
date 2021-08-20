@@ -24,11 +24,11 @@ async function createWindow() {
 
   mainWindow = win;
 
-  if (isDev) {
-    win.loadURL("http://localhost:3000");
-  } else {
-    win.loadURL("https://app.koncrete.dev");
-  }
+  // if (isDev) {
+  // win.loadURL("http://localhost:3000");
+  // } else {
+  win.loadURL("https://app.koncrete.dev");
+  // }
 
   // Hot Reloading
   if (isDev) {

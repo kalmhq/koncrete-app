@@ -16,7 +16,7 @@ import { ConnectionOptions } from "tls";
 import * as tmp from "tmp";
 import * as waitOn from "wait-on";
 import { mainWindow } from ".";
-import { privateClusterProxiesFilePath } from "./const";
+import { privateClusterProxiesFilePath } from "./dir";
 import { PrivateClusterProxy, ProxyServerSettings } from "./types";
 
 const dumpLogger = debug("koncrete:proxy:dump");

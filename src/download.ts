@@ -6,7 +6,7 @@ import * as https from "https";
 import * as os from "os";
 import { throttle } from "throttle-debounce";
 import { mainWindow } from ".";
-import { argocdPath } from "./const";
+import { argocdPath } from "./dir";
 import "./proxy";
 import { ArgoCDCliStatus } from "./types";
 

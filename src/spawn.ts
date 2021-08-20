@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
 import * as isDev from "electron-is-dev";
 import { mainWindow } from ".";
-import { argocdPath } from "./const";
+import { argocdPath } from "./dir";
 import { getKubectlProxyLists } from "./proxy";
 
 // TODO: rename this file
