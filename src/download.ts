@@ -14,7 +14,7 @@ const checksums = {
   "v2.0.4": {
     darwin: "0a35e08e820be4224742d81c17bc4748",
     linux: "11a3500225c5d53ffaf4bfc4e997b2e8",
-    windows: "db4f22afab811ae58534309733fe0f02",
+    windows: "074b457df20c4172d65a9f08952db989",
   },
 };
 

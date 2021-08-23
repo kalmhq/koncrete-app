@@ -1,7 +1,7 @@
 {
   "name": "koncrete",
   "description": "Koncrete is cloud-hosted continuous delivery for Kubernetes, powered by ArgoCD.",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "private": true,
   "main": "build/index.js",
   "author": {
@@ -45,7 +45,9 @@
     "postinstall": "electron-builder install-app-deps",
     "start": "concurrently --kill-others \"tsc -p . -w\" \"tsc -p . && electron .\"",
     "build": "tsc -p . && cp ./icon.png ./build",
-    "pack": "electron-builder --linux --mac --win --arm64 --x64"
+    "build-on-windows": "tsc -p . && copy .\\icon.png .\\build",
+    "pack": "electron-builder --linux --mac --win --arm64 --x64",
+    "pack-windows": "electron-builder --win --arm64 --x64"
   },
   "devDependencies": {
     "@types/reconnect-core": "^1.3.2",

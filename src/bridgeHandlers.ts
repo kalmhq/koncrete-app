@@ -5,14 +5,14 @@ import * as YAML from "yaml";
 import { argoCDCliStatus, downloadArgoCDCLI, loadArgoCDStatus } from "./download";
 import { getKubectlProxyLists, registerProxyServerConfig, startKubectlProxy, stopKubectlProxy } from "./proxy";
 import { argocdInstallCluster, argocdInstallProxyCluster } from "./spawn";
+import { kubeconfigPath } from "./dir";
 
 // Run in main process
 
 export const registerHandlers = () => {
   ipcMain.handle("load-kubeconfig", (event) => {
-    const path = process.env.KUBECONFIG || `${process.env.HOME}/.kube/config`;
     return fsPromises
-      .readFile(path)
+      .readFile(kubeconfigPath)
       .then((buf) => buf.toString())
       .then((content) => YAML.parse(content));
   });
