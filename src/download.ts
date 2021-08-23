@@ -51,8 +51,11 @@ export const loadArgoCDStatus = () => {
       if (err) {
         setArgoCDCliStatus("uninstalled", 0, 0);
       } else {
-        fs.readFile(argocdPath, function (err, data) {
-          var checksum = crypto.createHash("md5").update(data).digest("hex");
+        fs.readFile(argocdPath, function(err, data) {
+          var checksum = crypto
+            .createHash("md5")
+            .update(data)
+            .digest("hex");
 
           const platform = os.platform();
           let _platform: string;
@@ -81,10 +84,10 @@ export const loadArgoCDStatus = () => {
 loadArgoCDStatus();
 
 export const downloadFile = ({ url: remoteFile, path: localFile }: { url: string; path: string }) => {
-  return new Promise(function (resolve, reject) {
+  return new Promise(function(resolve, reject) {
     (hs as typeof https).get(remoteFile).on("response", (res) => {
       const file = fs.createWriteStream(localFile);
-      // TODO: show error if no content-length header?
+
       const len = parseInt(res.headers["content-length"] as string, 10);
       let downloaded = 0;
 
@@ -96,13 +99,13 @@ export const downloadFile = ({ url: remoteFile, path: localFile }: { url: string
           downloaded += chunk.length;
           setStatusWithThrottle(argoCDCliStatus.status, downloaded, len);
         })
-        .on("end", function () {
+        .on("end", function() {
           file.end();
           fs.chmod(localFile, 0o755, console.log);
           setArgoCDCliStatus("installed", 0, 0);
           resolve(true);
         })
-        .on("error", function (err) {
+        .on("error", function(err) {
           setArgoCDCliStatus("uninstalled", 0, 0);
           reject(err);
         });
@@ -132,7 +135,7 @@ export const downloadArgoCDCLI = (version: string = "v2.0.4") => {
     _platform = "linux";
   }
 
-  const url = `https://github.com/argoproj/argo-cd/releases/download/${version}/argocd-${platform}-amd64${
+  const url = `https://github.com/argoproj/argo-cd/releases/download/${version}/argocd-${_platform}-amd64${
     _platform === "windows" ? ".exe" : ""
   }`;
 
