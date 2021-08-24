@@ -1,8 +1,17 @@
 import { app } from "electron";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 
-const homedir = app.getPath("home");
+export const homedir = (() => {
+  const home = app.getPath("home");
+
+  if (home.includes("/snap/") && os.platform() === "linux") {
+    return path.join("home", os.userInfo().username);
+  }
+
+  return home;
+})();
 
 const ensureKoncreteDir = () => {
   try {

@@ -3,7 +3,7 @@ import { app, ipcMain } from "electron";
 import { promises as fsPromises } from "fs";
 import * as os from "os";
 import * as YAML from "yaml";
-import { kubeconfigPath } from "./dir";
+import { homedir, kubeconfigPath } from "./dir";
 import { argoCDCliStatus, downloadArgoCDCLI, loadArgoCDStatus } from "./download";
 import { getKubectlProxyLists, registerProxyServerConfig, startKubectlProxy, stopKubectlProxy } from "./proxy";
 import { argocdInstallCluster, argocdInstallProxyCluster } from "./spawn";
@@ -75,6 +75,8 @@ export const registerHandlers = () => {
       appGetPath: app.getPath("home"),
       osPaht: os.homedir(),
       HOME: process.env.HOME,
+      homedir: homedir,
+      userInfo: os.userInfo().homedir,
     };
   });
 };
