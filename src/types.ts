@@ -41,7 +41,7 @@ export interface ProxyServerSettings {
 }
 
 export interface Bridge {
-  loadKubeconfig: () => Promise<KubeConfig>;
+  loadKubeconfig: () => Promise<KubeConfig | { error: boolean; message: string; kubeconfigPath: string }>;
   downloadArgocdCLI: (version: string) => Promise<any>;
   getArgocdCLIStatus: () => Promise<ArgoCDCliStatus>;
   registerArgoCDCLIInstallationStatusHandler: (handler: (status: ArgoCDCliStatus) => void) => () => void;

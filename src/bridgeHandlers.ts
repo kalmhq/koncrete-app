@@ -1,9 +1,8 @@
 import * as dns from "dns";
-import { app, ipcMain } from "electron";
+import { ipcMain } from "electron";
 import { promises as fsPromises } from "fs";
-import * as os from "os";
 import * as YAML from "yaml";
-import { homedir, kubeconfigPath } from "./dir";
+import { kubeconfigPath } from "./dir";
 import { argoCDCliStatus, downloadArgoCDCLI, loadArgoCDStatus } from "./download";
 import { getKubectlProxyLists, registerProxyServerConfig, startKubectlProxy, stopKubectlProxy } from "./proxy";
 import { argocdInstallCluster, argocdInstallProxyCluster } from "./spawn";
@@ -15,7 +14,10 @@ export const registerHandlers = () => {
     return fsPromises
       .readFile(kubeconfigPath)
       .then((buf) => buf.toString())
-      .then((content) => YAML.parse(content));
+      .then((content) => YAML.parse(content))
+      .catch((e) => {
+        return { error: true, message: "Failed to load file", kubeconfigPath };
+      });
   });
 
   ipcMain.handle("dnsResolve4", (event, addr) => {
@@ -68,15 +70,5 @@ export const registerHandlers = () => {
 
   ipcMain.handle("register-proxy-server-config", (event, config) => {
     return registerProxyServerConfig(config);
-  });
-
-  ipcMain.handle("homepathDebug", () => {
-    return {
-      appGetPath: app.getPath("home"),
-      osPaht: os.homedir(),
-      HOME: process.env.HOME,
-      homedir: homedir,
-      userInfo: os.userInfo().homedir,
-    };
   });
 };
