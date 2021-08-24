@@ -41,16 +41,7 @@
       "provider": "github"
     },
     "snap": {
-      "plugs": [
-        "default",
-        {
-          "personal-files": {
-            "interface": "personal-files",
-            "read": ["$HOME/.kube/config"],
-            "write": ["$HOME/.koncrete"]
-          }
-        }
-      ]
+      "confinement": "classic"
     }
   },
   "scripts": {
