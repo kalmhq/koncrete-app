@@ -1,11 +1,12 @@
 import * as dns from "dns";
-import { ipcMain } from "electron";
+import { app, ipcMain } from "electron";
 import { promises as fsPromises } from "fs";
+import * as os from "os";
 import * as YAML from "yaml";
+import { kubeconfigPath } from "./dir";
 import { argoCDCliStatus, downloadArgoCDCLI, loadArgoCDStatus } from "./download";
 import { getKubectlProxyLists, registerProxyServerConfig, startKubectlProxy, stopKubectlProxy } from "./proxy";
 import { argocdInstallCluster, argocdInstallProxyCluster } from "./spawn";
-import { kubeconfigPath } from "./dir";
 
 // Run in main process
 
@@ -67,5 +68,13 @@ export const registerHandlers = () => {
 
   ipcMain.handle("register-proxy-server-config", (event, config) => {
     return registerProxyServerConfig(config);
+  });
+
+  ipcMain.handle("homepathDebug", () => {
+    return {
+      appGetPath: app.getPath("home"),
+      osPaht: os.homedir(),
+      HOME: process.env.HOME,
+    };
   });
 };

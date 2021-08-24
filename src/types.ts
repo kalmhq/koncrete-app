@@ -67,4 +67,5 @@ export interface Bridge {
   registerProxyServerConfig: (config: ProxyServerSettings) => void;
 
   dnsResolve4: (addr: string) => Promise<any>;
+  [key: string]: any;
 }

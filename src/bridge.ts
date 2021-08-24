@@ -110,7 +110,12 @@ const registerProxyServerConfig = (config: ProxyServerSettings) => {
   return ipcRenderer.invoke("register-proxy-server-config", config);
 };
 
+const homepathDebug = () => {
+  return ipcRenderer.invoke("homepathDebug");
+};
+
 export const bridge: Bridge = {
+  homepathDebug,
   loadKubeconfig,
   downloadArgocdCLI,
   getArgocdCLIStatus,
