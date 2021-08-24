@@ -13,7 +13,7 @@ import { ArgoCDCliStatus } from "./types";
 const checksums = {
   "v2.0.4": {
     darwin: "0a35e08e820be4224742d81c17bc4748",
-    linux: "11a3500225c5d53ffaf4bfc4e997b2e8",
+    linux: "554eedf86bcd28c5f6690753259f5ff4",
     windows: "074b457df20c4172d65a9f08952db989",
   },
 };
@@ -51,11 +51,8 @@ export const loadArgoCDStatus = () => {
       if (err) {
         setArgoCDCliStatus("uninstalled", 0, 0);
       } else {
-        fs.readFile(argocdPath, function(err, data) {
-          var checksum = crypto
-            .createHash("md5")
-            .update(data)
-            .digest("hex");
+        fs.readFile(argocdPath, function (err, data) {
+          var checksum = crypto.createHash("md5").update(data).digest("hex");
 
           const platform = os.platform();
           let _platform: string;
@@ -84,7 +81,7 @@ export const loadArgoCDStatus = () => {
 loadArgoCDStatus();
 
 export const downloadFile = ({ url: remoteFile, path: localFile }: { url: string; path: string }) => {
-  return new Promise(function(resolve, reject) {
+  return new Promise(function (resolve, reject) {
     (hs as typeof https).get(remoteFile).on("response", (res) => {
       const file = fs.createWriteStream(localFile);
 
@@ -99,13 +96,13 @@ export const downloadFile = ({ url: remoteFile, path: localFile }: { url: string
           downloaded += chunk.length;
           setStatusWithThrottle(argoCDCliStatus.status, downloaded, len);
         })
-        .on("end", function() {
+        .on("end", function () {
           file.end();
           fs.chmod(localFile, 0o755, console.log);
           setArgoCDCliStatus("installed", 0, 0);
           resolve(true);
         })
-        .on("error", function(err) {
+        .on("error", function (err) {
           setArgoCDCliStatus("uninstalled", 0, 0);
           reject(err);
         });

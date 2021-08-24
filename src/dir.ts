@@ -7,7 +7,7 @@ export const homedir = (() => {
   const home = app.getPath("home");
 
   if (home.includes("/snap/") && os.platform() === "linux") {
-    return path.join("home", os.userInfo().username);
+    return path.join("/home", os.userInfo().username);
   }
 
   return home;
