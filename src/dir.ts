@@ -1,8 +1,8 @@
+import { app } from "electron";
 import * as fs from "fs";
-import * as os from "os";
 import * as path from "path";
 
-const homedir = os.homedir();
+const homedir = app.getPath("home");
 
 const ensureKoncreteDir = () => {
   try {
