@@ -1,7 +1,7 @@
 {
   "name": "koncrete",
   "description": "Koncrete is cloud-hosted continuous delivery for Kubernetes, powered by ArgoCD.",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "private": true,
   "main": "build/index.js",
   "author": {
@@ -36,22 +36,29 @@
     "mac": {
       "category": "public.app-category.utilities"
     },
-    "files": ["build/*"],
+    "files": [
+      "build/*"
+    ],
     "publish": {
       "provider": "github"
     },
     "linux": {
       "category": "Network",
       "artifactName": "${productName}-${version}.${arch}.${ext}",
-      "target": ["deb", "rpm", "AppImage"]
+      "target": [
+        "deb",
+        "rpm",
+        "AppImage"
+      ]
     }
   },
   "scripts": {
     "postinstall": "electron-builder install-app-deps",
     "start": "concurrently --kill-others \"tsc -p . -w\" \"tsc -p . && electron .\"",
-    "build": "tsc -p . && cp ./icon.png ./build && cp ./icon.icns ./build",
-    "build-on-windows": "tsc -p . && copy .\\icon.png .\\build && copy .\\icon.icns .\\build",
+    "build": "tsc -p . && cp ./icon.png ./build && mkdir ./build/icons && cp ./icon.png ./build/icons/512x512.png",
+    "build-on-windows": "tsc -p . && copy .\\icon.png .\\build",
     "pack": "electron-builder --linux --mac --win --arm64 --x64",
+    "pack-linux": "electron-builder --linux --arm64 --x64",
     "pack-windows": "electron-builder --win --arm64 --x64"
   },
   "devDependencies": {
