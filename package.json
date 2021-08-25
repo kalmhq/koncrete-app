@@ -49,7 +49,7 @@
   "scripts": {
     "postinstall": "electron-builder install-app-deps",
     "start": "concurrently --kill-others \"tsc -p . -w\" \"tsc -p . && electron .\"",
-    "build": "tsc -p . && cp ./icon.png ./build && && cp ./icon.icns ./build",
+    "build": "tsc -p . && cp ./icon.png ./build && cp ./icon.icns ./build",
     "build-on-windows": "tsc -p . && copy .\\icon.png .\\build && copy .\\icon.icns .\\build",
     "pack": "electron-builder --linux --mac --win --arm64 --x64",
     "pack-windows": "electron-builder --win --arm64 --x64"
