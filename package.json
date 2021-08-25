@@ -1,7 +1,7 @@
 {
   "name": "koncrete",
   "description": "Koncrete is cloud-hosted continuous delivery for Kubernetes, powered by ArgoCD.",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "private": true,
   "main": "build/index.js",
   "author": {
@@ -40,8 +40,10 @@
     "publish": {
       "provider": "github"
     },
-    "snap": {
-      "confinement": "classic"
+    "linux": {
+      "category": "Network",
+      "artifactName": "${productName}-${version}.${arch}.${ext}",
+      "target": ["deb", "rpm", "AppImage"]
     }
   },
   "scripts": {
