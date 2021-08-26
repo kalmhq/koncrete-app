@@ -36,27 +36,22 @@
     "mac": {
       "category": "public.app-category.utilities"
     },
-    "files": [
-      "build/*"
-    ],
+    "files": ["build/*"],
     "publish": {
       "provider": "github"
     },
     "linux": {
       "category": "Network",
       "artifactName": "${productName}-${version}.${arch}.${ext}",
-      "target": [
-        "deb",
-        "rpm",
-        "AppImage"
-      ]
+      "target": ["deb", "rpm", "AppImage"]
     }
   },
   "scripts": {
     "postinstall": "electron-builder install-app-deps",
     "start": "concurrently --kill-others \"tsc -p . -w\" \"tsc -p . && electron .\"",
-    "build": "tsc -p . && cp ./icon.png ./build && mkdir ./build/icons && cp ./icon.png ./build/icons/512x512.png",
-    "build-on-windows": "tsc -p . && copy .\\icon.png .\\build",
+    "build": "run-script-os",
+    "build:default": "tsc -p . && cp ./icon.png ./build",
+    "build:linux": "tsc -p . && cp ./icon.png ./build && mkdir ./build/icons && cp ./icon.png ./build/icons/512x512.png",
     "pack": "electron-builder --linux --mac --win --arm64 --x64",
     "pack-linux": "electron-builder --linux --arm64 --x64",
     "pack-windows": "electron-builder --win --arm64 --x64"
@@ -68,6 +63,7 @@
     "concurrently": "^6.2.0",
     "electron": "^13.1.7",
     "electron-builder": "^22.11.7",
-    "electron-reload": "^1.5.0"
+    "electron-reload": "^1.5.0",
+    "run-script-os": "^1.1.6"
   }
 }
