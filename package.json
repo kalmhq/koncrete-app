@@ -1,7 +1,7 @@
 {
   "name": "koncrete",
   "description": "Koncrete is cloud-hosted continuous delivery for Kubernetes, powered by ArgoCD.",
-  "version": "0.0.16",
+  "version": "0.0.20",
   "private": true,
   "main": "build/index.js",
   "author": {
