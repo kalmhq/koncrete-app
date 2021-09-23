@@ -39,3 +39,6 @@ jobs:
           release: ${{ startsWith(github.ref, 'refs/tags/v') }}
 
           args: "--publish always"
+
+          mac_certs: ${{ secrets.mac_certs }}
+          mac_certs_password: ${{ secrets.mac_certs_password }}
