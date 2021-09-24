@@ -65,11 +65,6 @@ async function createWindow() {
     win.webContents.openDevTools();
   }
 
-  win.webContents.on("new-window", function (e, url) {
-    e.preventDefault();
-    require("electron").shell.openExternal(url);
-  });
-
   registerHandlers();
 }
 
