@@ -52,8 +52,7 @@
     "postinstall": "electron-builder install-app-deps",
     "start": "concurrently --kill-others \"tsc -p . -w\" \"tsc -p . && electron .\"",
     "build": "run-script-os",
-    "build:default": "tsc -p . && cp ./icon.png ./build",
-    "build:linux": "tsc -p . && cp ./icon.png ./build && mkdir ./build/icons && cp ./icon.png ./build/icons/512x512.png",
+    "build:default": "tsc -p .",
     "pack": "electron-builder --linux --mac --win --arm64 --x64",
     "pack-linux": "electron-builder --linux --arm64 --x64",
     "pack-windows": "electron-builder --win --arm64 --x64"

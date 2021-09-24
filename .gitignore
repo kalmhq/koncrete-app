@@ -11,6 +11,8 @@
 # production
 /build/*
 !/build/entitlements.mac.plist
+!/build/icon.png
+!/build/icons
 /dist
 
 # misc
