@@ -1,7 +1,7 @@
 {
   "name": "koncrete",
   "description": "Koncrete is cloud-hosted continuous delivery for Kubernetes, powered by ArgoCD.",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "private": true,
   "main": "build/index.js",
   "author": {
@@ -29,11 +29,13 @@
     "yaml": "^1.10.2"
   },
   "build": {
+    "afterSign": "electron-builder-notarize",
     "appId": "dev.koncrete.app",
     "productName": "Koncrete",
     "copyright": "Copyright © 2021 ${author}",
     "extends": null,
     "mac": {
+      "hardenedRuntime": true,
       "category": "public.app-category.utilities"
     },
     "files": ["build/*"],
@@ -63,6 +65,7 @@
     "concurrently": "^6.2.0",
     "electron": "^13.1.7",
     "electron-builder": "^22.11.7",
+    "electron-builder-notarize": "^1.2.0",
     "electron-reload": "^1.5.0",
     "run-script-os": "^1.1.6"
   }
