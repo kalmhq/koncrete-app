@@ -53,6 +53,7 @@ jobs:
           windows_certs: ${{ secrets.windows_certs }}
           windows_certs_password: ${{ secrets.windows_certs_password }}
 
+        env:
           # macOS notarization API key
           API_KEY_ID: ${{ secrets.app_store_connect_api_key_id }}
           API_KEY_ISSUER_ID: ${{ secrets.app_store_connect_api_key_issuer_id }}
