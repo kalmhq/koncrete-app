@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
 import * as isDev from "electron-is-dev";
 import { mainWindow } from ".";
-import { argocdPath } from "./dir";
+import { argocdConfig, argocdPath } from "./dir";
 import { getKubectlProxyLists } from "./proxy";
 
 // TODO: rename this file
@@ -10,8 +10,8 @@ const runArgocd = (args: string[], server: string, token: string, streamID: stri
   return new Promise((resolve, reject) => {
     const combinedArgs = args.concat(
       isDev
-        ? ["--server", server, "--grpc-web", "--insecure", "--auth-token", token]
-        : ["--server", server, "--grpc-web", "--auth-token", token],
+        ? ["--server", server, "--grpc-web", "--insecure", "--auth-token", token, "--config", argocdConfig]
+        : ["--server", server, "--grpc-web", "--auth-token", token, "--config", argocdConfig],
     );
 
     const p = spawn(argocdPath, combinedArgs, { env: { ...process.env, ARGOCD_BINARY_NAME: "argocd" } });
