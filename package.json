@@ -42,6 +42,9 @@
     "publish": {
       "provider": "github"
     },
+    "win": {
+      "publisherName": "KALM INC"
+    },
     "linux": {
       "category": "Network",
       "artifactName": "${productName}-${version}.${arch}.${ext}",
